@@ -1,15 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
-import { UserProfile, ChatSession, Message, LibraryItem, LearningPath, Attachment } from './types';
-import Layout from './components/Layout';
-import ChatInterface from './components/ChatInterface';
-import Library from './components/Library';
-import History from './components/History';
-import ProfileSetup from './components/ProfileSetup';
-import LearningPaths from './components/LearningPaths';
+import { UserProfile, ChatSession, Message, LibraryItem, LearningPath, Attachment } from './types.ts';
+import Layout from './components/Layout.tsx';
+import ChatInterface from './components/ChatInterface.tsx';
+import Library from './components/Library.tsx';
+import History from './components/History.tsx';
+import ProfileSetup from './components/ProfileSetup.tsx';
+import LearningPaths from './components/LearningPaths.tsx';
 import { BookOpen, AlertCircle, Share2, Check } from 'lucide-react';
-import { geminiService } from './services/geminiService';
-import { storage } from './services/storageService';
+import { geminiService } from './services/geminiService.ts';
+import { storage } from './services/storageService.ts';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
