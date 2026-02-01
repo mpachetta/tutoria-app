@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, Part, Type } from "@google/genai";
-import { SYSTEM_PROMPT, LEARNING_PATH_PROMPT } from "../constants";
-import { UserProfile, Message, Attachment, LearningPath } from "../types";
+import { SYSTEM_PROMPT, LEARNING_PATH_PROMPT } from "../constants.ts";
+import { UserProfile, Message, Attachment, LearningPath } from "../types.ts";
 
 export class GeminiService {
   private modelName = 'gemini-3-flash-preview';
