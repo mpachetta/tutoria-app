@@ -1,0 +1,8 @@
+{
+  "name": "TutorIA - Tu Profe de Lengua",
+  "description": "Un tutor inteligente especializado en Lengua Castellana y Literatura para acompañar a estudiantes en su proceso de aprendizaje.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
