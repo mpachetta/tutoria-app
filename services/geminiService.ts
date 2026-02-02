@@ -4,8 +4,14 @@ import { SYSTEM_PROMPT, LEARNING_PATH_PROMPT } from "../constants.ts";
 import { UserProfile, Message, Attachment, LearningPath } from "../types.ts";
 
 export class GeminiService {
-  // Modelo recomendado para tareas de texto y razonamiento rápido
+  // Modelo estándar para tareas de texto según guías de calidad
   private modelName = 'gemini-3-flash-preview';
+
+  private getAIInstance() {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) return null;
+    return new GoogleGenAI({ apiKey: apiKey.trim() });
+  }
 
   async sendMessage(
     userProfile: UserProfile,
@@ -13,20 +19,17 @@ export class GeminiService {
     currentMessage: string,
     attachments: Attachment[] = []
   ): Promise<string> {
-    // Obtenemos la clave y eliminamos posibles espacios accidentales
-    const rawApiKey = process.env.API_KEY;
-    const apiKey = rawApiKey ? rawApiKey.trim() : null;
+    const ai = this.getAIInstance();
     
-    if (!apiKey) {
-      return "⚠️ **Error:** No se detectó la clave de API. Verifica que la variable `API_KEY` esté configurada en Netlify (Site settings > Environment variables) y vuelve a desplegar la app.";
+    if (!ai) {
+      return "⚠️ **Configuración incompleta:** No se detectó la `API_KEY`. Por favor, selecciónala en el botón de configuración superior.";
     }
 
-    const ai = new GoogleGenAI({ apiKey });
     const studentInfo = `Contexto: Estudiante ${userProfile.name}, ${userProfile.age} años, curso ${userProfile.grade}.`;
     
     const currentParts: Part[] = [];
 
-    // Adjuntos actuales
+    // Procesar adjuntos
     for (const att of attachments) {
       if (att.url.includes(',')) {
         const base64Data = att.url.split(',')[1];
@@ -39,32 +42,24 @@ export class GeminiService {
       }
     }
 
-    // Texto del mensaje (nunca vacío)
-    const textContent = currentMessage.trim() || (attachments.length > 0 ? "Analiza este material por favor." : "Hola TutorIA");
+    // Asegurar que el texto no esté vacío (evita error 400)
+    const textContent = currentMessage.trim() || (attachments.length > 0 ? "Analiza el archivo adjunto." : "Hola");
     currentParts.push({ text: textContent });
 
-    // Mapeo de historial
-    const contents = history.map(msg => {
-      const parts: Part[] = [];
-      if (msg.attachments && msg.attachments.length > 0) {
-        msg.attachments.forEach(att => {
-          if (att.url.includes(',')) {
-            parts.push({ 
-              inlineData: { 
-                mimeType: att.mimeType, 
-                data: att.url.split(',')[1] 
-              } 
-            });
+    // Construir historial
+    const contents = history.map(msg => ({
+      role: msg.role === 'user' ? 'user' : 'model',
+      parts: [
+        ...(msg.attachments || []).map(att => ({
+          inlineData: {
+            mimeType: att.mimeType,
+            data: att.url.includes(',') ? att.url.split(',')[1] : ''
           }
-        });
-      }
-      parts.push({ text: msg.content.trim() || "Adjunto" });
-      
-      return {
-        role: msg.role === 'user' ? 'user' : 'model',
-        parts: parts
-      };
-    });
+        })),
+        { text: msg.content || "..." }
+        // FIX: Use safe property checking for union type Part to avoid "Property 'text' does not exist" error
+      ].filter(p => ('text' in p && p.text) || ('inlineData' in p && p.inlineData?.data))
+    }));
 
     contents.push({ role: 'user', parts: currentParts });
 
@@ -78,26 +73,23 @@ export class GeminiService {
         },
       });
 
-      return response.text || "No pude generar una respuesta.";
+      return response.text || "TutorIA no pudo generar una respuesta clara. Intenta reformular.";
     } catch (error: any) {
       console.error("Gemini API Error:", error);
       
       const errorMsg = error.toString();
-      if (errorMsg.includes("API key not valid")) {
-        return "⚠️ **Error de API Key:** La clave configurada en Netlify es inválida. Asegúrate de haberla copiado completa de Google AI Studio sin espacios extra.";
+      if (errorMsg.includes("API key not valid") || errorMsg.includes("INVALID_ARGUMENT")) {
+        throw new Error("API_KEY_INVALID");
       }
       
-      return "Hubo un problema al conectar con el cerebro de TutorIA. Intenta escribir de nuevo.";
+      return "Hubo un error de conexión con TutorIA. Por favor, intenta de nuevo en unos segundos.";
     }
   }
 
   async generateLearningPath(userProfile: UserProfile, topic: string): Promise<Partial<LearningPath>> {
-    const rawApiKey = process.env.API_KEY;
-    const apiKey = rawApiKey?.trim();
-    if (!apiKey) throw new Error("No API Key");
+    const ai = this.getAIInstance();
+    if (!ai) throw new Error("API_KEY_MISSING");
 
-    const ai = new GoogleGenAI({ apiKey });
-    
     const response = await ai.models.generateContent({
       model: this.modelName,
       contents: [{ role: 'user', parts: [{ text: `Crea una ruta de aprendizaje para: ${topic}` }] }],
@@ -140,17 +132,14 @@ export class GeminiService {
   }
 
   async evaluateStepResponse(userProfile: UserProfile, stepTitle: string, question: string, answer: string): Promise<{ isCorrect: boolean; feedback: string }> {
-    const rawApiKey = process.env.API_KEY;
-    const apiKey = rawApiKey?.trim();
-    if (!apiKey) throw new Error("No API Key");
-
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = this.getAIInstance();
+    if (!ai) throw new Error("API_KEY_MISSING");
 
     const response = await ai.models.generateContent({
       model: this.modelName,
       contents: [{ role: 'user', parts: [{ text: `Pregunta: ${question}\nRespuesta: ${answer}` }] }],
       config: {
-        systemInstruction: "Evalúa la respuesta. Responde en JSON con isCorrect (boolean) y feedback (string).",
+        systemInstruction: "Evalúa pedagógicamente la respuesta. Retorna JSON con isCorrect y feedback.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -162,7 +151,7 @@ export class GeminiService {
         }
       }
     });
-    return JSON.parse(response.text || '{"isCorrect":false,"feedback":"Error"}');
+    return JSON.parse(response.text || '{"isCorrect":false,"feedback":"Error en la evaluación."}');
   }
 }
 
