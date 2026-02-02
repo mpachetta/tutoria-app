@@ -7,7 +7,7 @@ import Library from './components/Library.tsx';
 import History from './components/History.tsx';
 import ProfileSetup from './components/ProfileSetup.tsx';
 import LearningPaths from './components/LearningPaths.tsx';
-import { BookOpen, AlertCircle, Share2, Check, Key, ExternalLink } from 'lucide-react';
+import { BookOpen, AlertCircle, Key, ExternalLink, RefreshCw } from 'lucide-react';
 import { geminiService } from './services/geminiService.ts';
 import { storage } from './services/storageService.ts';
 
@@ -20,8 +20,8 @@ const App: React.FC = () => {
   const [learningPaths, setLearningPaths] = useState<LearningPath[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [copySuccess, setCopySuccess] = useState(false);
   const [keyError, setKeyError] = useState(false);
+  const [errorType, setErrorType] = useState<'INVALID' | 'NOT_FOUND' | null>(null);
 
   useEffect(() => {
     const initData = async () => {
@@ -40,6 +40,15 @@ const App: React.FC = () => {
       setSessions(dbSessions);
       setLibraryItems(dbLibrary);
       setLearningPaths(dbPaths);
+
+      // Verificar si ya hay una clave seleccionada
+      if (window.aistudio?.hasSelectedApiKey) {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        if (!hasKey && process.env.API_KEY === "undefined") {
+          setKeyError(true);
+          setErrorType('INVALID');
+        }
+      }
     };
     initData();
   }, []);
@@ -48,10 +57,11 @@ const App: React.FC = () => {
     if (window.aistudio?.openSelectKey) {
       await window.aistudio.openSelectKey();
       setKeyError(false);
-      // Tras abrir el selector, asumimos éxito y recargamos
-      window.location.reload();
+      setErrorType(null);
+      // Tras abrir el selector, procedemos a recargar para que el proceso de inyección de clave sea limpio
+      setTimeout(() => window.location.reload(), 500);
     } else {
-      alert("Esta función solo está disponible en el entorno de AI Studio/Netlify.");
+      alert("Esta función requiere estar en el entorno de despliegue de AI Studio.");
     }
   };
 
@@ -101,6 +111,7 @@ const App: React.FC = () => {
 
     setIsProcessing(true);
     setKeyError(false);
+    setErrorType(null);
     
     try {
       const aiResponse = await geminiService.sendMessage(
@@ -121,9 +132,13 @@ const App: React.FC = () => {
       setSessions([...sessions]);
       await storage.save('sessions', currentSession);
     } catch (error: any) {
-      console.error(error);
+      console.error("App catch error:", error);
       if (error.message === 'API_KEY_INVALID') {
         setKeyError(true);
+        setErrorType('INVALID');
+      } else if (error.message === 'MODEL_NOT_FOUND') {
+        setKeyError(true);
+        setErrorType('NOT_FOUND');
       }
     } finally {
       setIsProcessing(false);
@@ -182,25 +197,38 @@ const App: React.FC = () => {
       {keyError && (
         <div className="bg-red-50 border-b border-red-100 p-4 flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top duration-300">
           <div className="flex items-center gap-3">
-            <AlertCircle className="text-red-500" size={24} />
+            <div className="p-2 bg-red-100 rounded-lg text-red-600">
+              <AlertCircle size={24} />
+            </div>
             <div className="text-sm text-red-800">
-              <p className="font-bold">Error de API Key</p>
-              <p>La clave configurada no es válida. Debes seleccionar una clave de un proyecto con facturación activa.</p>
+              <p className="font-bold">{errorType === 'NOT_FOUND' ? 'Modelo no disponible' : 'Error de API Key'}</p>
+              <p>
+                {errorType === 'NOT_FOUND' 
+                  ? 'El modelo seleccionado no está disponible para tu clave actual. Intenta re-vincular tu proyecto.'
+                  : 'La clave configurada no es válida o el proyecto no tiene facturación activa.'}
+              </p>
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <a 
               href="https://ai.google.dev/gemini-api/docs/billing" 
               target="_blank" 
               className="px-4 py-2 text-xs font-bold text-red-600 flex items-center gap-1 hover:underline"
             >
-              Documentación <ExternalLink size={14} />
+              Ver Facturación <ExternalLink size={14} />
             </a>
             <button 
               onClick={handleOpenKeySelector}
-              className="bg-red-600 text-white px-6 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-red-700"
+              className="bg-red-600 text-white px-6 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-red-700 shadow-md transition-colors"
             >
-              <Key size={14} /> Configurar API Key
+              <Key size={14} /> {errorType === 'NOT_FOUND' ? 'Re-vincular Proyecto' : 'Configurar API Key'}
+            </button>
+            <button 
+              onClick={() => window.location.reload()}
+              className="p-2 text-red-400 hover:text-red-600 transition-colors"
+              title="Recargar página"
+            >
+              <RefreshCw size={18} />
             </button>
           </div>
         </div>
@@ -271,21 +299,27 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              <div className="pt-8 border-t border-slate-100">
+              <div className="pt-8 border-t border-slate-100 space-y-4">
+                <h3 className="font-bold text-slate-700">Configuración Técnica</h3>
                 <button 
                   onClick={handleOpenKeySelector}
-                  className="w-full py-4 bg-slate-50 text-slate-600 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-100 border border-slate-200"
+                  className="w-full py-4 bg-slate-50 text-slate-600 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-100 border border-slate-200 transition-all"
                 >
-                  <Key size={18} /> Cambiar API Key de Google
+                  <Key size={18} /> Cambiar Clave de Google Gemini
                 </button>
+                <p className="text-xs text-slate-400 text-center">
+                  La clave seleccionada se guarda de forma segura en tu navegador.
+                </p>
               </div>
 
-              <button 
-                onClick={() => { if(confirm("¿Borrar todo?")) { localStorage.clear(); indexedDB.deleteDatabase('TutorIA_DB'); window.location.reload(); } }}
-                className="w-full py-4 text-slate-400 hover:text-red-500 font-bold"
-              >
-                Borrar todos mis datos locales
-              </button>
+              <div className="pt-6 border-t border-slate-100">
+                <button 
+                  onClick={() => { if(confirm("¿Estás seguro de que quieres borrar todos tus datos? Esta acción es irreversible.")) { localStorage.clear(); indexedDB.deleteDatabase('TutorIA_DB'); window.location.reload(); } }}
+                  className="w-full py-4 text-slate-400 hover:text-red-500 font-bold transition-colors"
+                >
+                  Restablecer aplicación (Borrar todo)
+                </button>
+              </div>
            </div>
         </div>
       )}
