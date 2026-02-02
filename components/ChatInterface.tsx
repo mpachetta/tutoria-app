@@ -12,8 +12,8 @@ import {
   BookOpen
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { geminiService } from '../services/geminiService';
-import { UserProfile, Message, Attachment } from '../types';
+import { geminiService } from '../services/geminiService.ts';
+import { UserProfile, Message, Attachment } from '../types.ts';
 
 interface ChatInterfaceProps {
   user: UserProfile;
@@ -38,9 +38,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, currentChat, onSend
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [currentChat]);
+  }, [currentChat, isProcessing]);
 
-  // Cerrar el menú de herramientas al hacer click fuera
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (toolsRef.current && !toolsRef.current.contains(event.target as Node)) {
@@ -226,7 +225,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, currentChat, onSend
           </div>
         ))}
         {isProcessing && (
-          <div className="flex justify-start">
+          <div className="flex justify-start animate-pulse">
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex items-center gap-3">
               <Loader2 className="animate-spin text-indigo-600" size={18} />
               <span className="text-sm text-slate-500 font-medium">TutorIA está pensando...</span>
@@ -236,7 +235,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, currentChat, onSend
       </div>
 
       <div className="p-4 md:p-6 bg-white border-t border-slate-200 relative">
-        {/* Vista previa de adjuntos pendientes */}
         {pendingAttachments.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-3 max-w-5xl mx-auto">
             {pendingAttachments.map((att) => (

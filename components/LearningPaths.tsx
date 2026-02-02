@@ -11,8 +11,8 @@ import {
   BookOpen,
   ChevronRight
 } from 'lucide-react';
-import { UserProfile, LearningPath, LearningStep } from '../types';
-import { geminiService } from '../services/geminiService';
+import { UserProfile, LearningPath, LearningStep } from '../types.ts';
+import { geminiService } from '../services/geminiService.ts';
 import ReactMarkdown from 'react-markdown';
 
 interface LearningPathsProps {
@@ -71,7 +71,6 @@ const LearningPaths: React.FC<LearningPathsProps> = ({ user, paths, onAddPath, o
       setFeedback({ isCorrect: result.isCorrect, text: result.feedback });
       
       if (result.isCorrect) {
-        // Mark current step as completed and move forward if possible
         const updatedSteps = [...activePath.steps];
         updatedSteps[activePath.currentStepIndex].isCompleted = true;
         
@@ -86,7 +85,7 @@ const LearningPaths: React.FC<LearningPathsProps> = ({ user, paths, onAddPath, o
         };
         
         onUpdatePath(updatedPath);
-        if (result.isCorrect) setUserAnswer('');
+        setUserAnswer('');
       }
     } catch (error) {
       console.error(error);
