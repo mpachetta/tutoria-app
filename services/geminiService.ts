@@ -4,8 +4,8 @@ import { SYSTEM_PROMPT, LEARNING_PATH_PROMPT } from "../constants.ts";
 import { UserProfile, Message, Attachment, LearningPath } from "../types.ts";
 
 export class GeminiService {
-  // Usamos un alias estable para evitar errores de versión
-  private modelName = 'gemini-flash-latest';
+  // Modelo recomendado para tareas de texto y razonamiento rápido
+  private modelName = 'gemini-3-flash-preview';
 
   async sendMessage(
     userProfile: UserProfile,
@@ -13,19 +13,20 @@ export class GeminiService {
     currentMessage: string,
     attachments: Attachment[] = []
   ): Promise<string> {
-    const apiKey = process.env.API_KEY;
+    // Obtenemos la clave y eliminamos posibles espacios accidentales
+    const rawApiKey = process.env.API_KEY;
+    const apiKey = rawApiKey ? rawApiKey.trim() : null;
     
     if (!apiKey) {
-      return "⚠️ **Error:** No se detectó la clave de API. Configura `API_KEY` en el panel de Netlify.";
+      return "⚠️ **Error:** No se detectó la clave de API. Verifica que la variable `API_KEY` esté configurada en Netlify (Site settings > Environment variables) y vuelve a desplegar la app.";
     }
 
     const ai = new GoogleGenAI({ apiKey });
     const studentInfo = `Contexto: Estudiante ${userProfile.name}, ${userProfile.age} años, curso ${userProfile.grade}.`;
     
-    // 1. Construir partes del mensaje actual
     const currentParts: Part[] = [];
 
-    // Agregar adjuntos actuales si existen
+    // Adjuntos actuales
     for (const att of attachments) {
       if (att.url.includes(',')) {
         const base64Data = att.url.split(',')[1];
@@ -38,15 +39,13 @@ export class GeminiService {
       }
     }
 
-    // El texto NUNCA puede estar vacío para la API de Gemini (error 400)
-    const textContent = currentMessage.trim() || (attachments.length > 0 ? "Analiza el material adjunto." : "Hola");
+    // Texto del mensaje (nunca vacío)
+    const textContent = currentMessage.trim() || (attachments.length > 0 ? "Analiza este material por favor." : "Hola TutorIA");
     currentParts.push({ text: textContent });
 
-    // 2. Mapear el historial correctamente incluyendo sus adjuntos pasados si los hubiera
+    // Mapeo de historial
     const contents = history.map(msg => {
       const parts: Part[] = [];
-      
-      // Si el mensaje del historial tenía adjuntos, los incluimos para mantener contexto
       if (msg.attachments && msg.attachments.length > 0) {
         msg.attachments.forEach(att => {
           if (att.url.includes(',')) {
@@ -59,8 +58,6 @@ export class GeminiService {
           }
         });
       }
-      
-      // Siempre añadir texto (incluso si es un placeholder)
       parts.push({ text: msg.content.trim() || "Adjunto" });
       
       return {
@@ -69,7 +66,6 @@ export class GeminiService {
       };
     });
 
-    // 3. Agregar el turno actual
     contents.push({ role: 'user', parts: currentParts });
 
     try {
@@ -82,23 +78,29 @@ export class GeminiService {
         },
       });
 
-      return response.text || "Lo siento, no pude procesar tu solicitud.";
+      return response.text || "No pude generar una respuesta.";
     } catch (error: any) {
       console.error("Gemini API Error:", error);
-      if (error.message?.includes("400")) {
-        return "⚠️ Error 400: Hubo un problema con el formato del mensaje. Intenta escribir algo de texto junto a tus archivos.";
+      
+      const errorMsg = error.toString();
+      if (errorMsg.includes("API key not valid")) {
+        return "⚠️ **Error de API Key:** La clave configurada en Netlify es inválida. Asegúrate de haberla copiado completa de Google AI Studio sin espacios extra.";
       }
-      return "Hubo un error al conectar con TutorIA. Por favor, revisa tu conexión o intenta más tarde.";
+      
+      return "Hubo un problema al conectar con el cerebro de TutorIA. Intenta escribir de nuevo.";
     }
   }
 
   async generateLearningPath(userProfile: UserProfile, topic: string): Promise<Partial<LearningPath>> {
-    const apiKey = process.env.API_KEY;
-    const ai = new GoogleGenAI({ apiKey: apiKey! });
+    const rawApiKey = process.env.API_KEY;
+    const apiKey = rawApiKey?.trim();
+    if (!apiKey) throw new Error("No API Key");
+
+    const ai = new GoogleGenAI({ apiKey });
     
     const response = await ai.models.generateContent({
       model: this.modelName,
-      contents: [{ role: 'user', parts: [{ text: `Crea una ruta de aprendizaje para el tema: ${topic}` }] }],
+      contents: [{ role: 'user', parts: [{ text: `Crea una ruta de aprendizaje para: ${topic}` }] }],
       config: {
         systemInstruction: LEARNING_PATH_PROMPT,
         responseMimeType: "application/json",
@@ -138,16 +140,17 @@ export class GeminiService {
   }
 
   async evaluateStepResponse(userProfile: UserProfile, stepTitle: string, question: string, answer: string): Promise<{ isCorrect: boolean; feedback: string }> {
-    const apiKey = process.env.API_KEY;
-    const ai = new GoogleGenAI({ apiKey: apiKey! });
+    const rawApiKey = process.env.API_KEY;
+    const apiKey = rawApiKey?.trim();
+    if (!apiKey) throw new Error("No API Key");
 
-    const prompt = `Pregunta: ${question}\nRespuesta del estudiante: ${answer}\nEvalúa si la respuesta demuestra comprensión del tema "${stepTitle}".`;
+    const ai = new GoogleGenAI({ apiKey });
 
     const response = await ai.models.generateContent({
       model: this.modelName,
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      contents: [{ role: 'user', parts: [{ text: `Pregunta: ${question}\nRespuesta: ${answer}` }] }],
       config: {
-        systemInstruction: "Eres un profesor evaluando una respuesta. Responde en JSON con 'isCorrect' (boolean) y 'feedback' (string con consejos pedagógicos).",
+        systemInstruction: "Evalúa la respuesta. Responde en JSON con isCorrect (boolean) y feedback (string).",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -159,7 +162,7 @@ export class GeminiService {
         }
       }
     });
-    return JSON.parse(response.text || '{"isCorrect":false,"feedback":"Error en la evaluación."}');
+    return JSON.parse(response.text || '{"isCorrect":false,"feedback":"Error"}');
   }
 }
 
