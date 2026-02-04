@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { User, BookOpen, GraduationCap, ArrowRight } from 'lucide-react';
+import { User, BookOpen, ArrowRight } from 'lucide-react';
 import { UserProfile } from '../types';
 
 interface ProfileSetupProps {
@@ -10,17 +10,15 @@ interface ProfileSetupProps {
 const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete }) => {
   const [formData, setFormData] = useState({
     name: '',
-    age: '',
-    grade: ''
+    age: ''
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.name && formData.age && formData.grade) {
+    if (formData.name && formData.age) {
       onComplete({
         name: formData.name,
-        age: parseInt(formData.age),
-        grade: formData.grade
+        age: parseInt(formData.age)
       });
     }
   };
@@ -35,7 +33,7 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete }) => {
         </div>
 
         <h1 className="text-3xl font-bold text-center text-slate-800 mb-2">¡Hola Estudiante!</h1>
-        <p className="text-center text-slate-500 mb-10">Completemos tu perfil para que TutorIA pueda ayudarte mejor.</p>
+        <p className="text-center text-slate-500 mb-10">Completemos tu perfil para que TutorIA adapte sus explicaciones.</p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
@@ -53,34 +51,18 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete }) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700 ml-1">Edad</label>
-              <input 
-                required
-                type="number"
-                min="5"
-                max="99"
-                value={formData.age}
-                onChange={e => setFormData({...formData, age: e.target.value})}
-                placeholder="Ej. 14"
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700 ml-1">Curso / Año</label>
-              <div className="relative">
-                <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                <input 
-                  required
-                  type="text"
-                  value={formData.grade}
-                  onChange={e => setFormData({...formData, grade: e.target.value})}
-                  placeholder="Ej. 3ro B"
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all"
-                />
-              </div>
-            </div>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-700 ml-1">Edad</label>
+            <input 
+              required
+              type="number"
+              min="5"
+              max="99"
+              value={formData.age}
+              onChange={e => setFormData({...formData, age: e.target.value})}
+              placeholder="Ej. 14"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all"
+            />
           </div>
 
           <button 

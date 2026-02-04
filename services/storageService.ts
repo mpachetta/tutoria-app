@@ -11,13 +11,12 @@ export class StorageService {
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
         if (!db.objectStoreNames.contains('sessions')) db.createObjectStore('sessions', { keyPath: 'id' });
-        if (!db.objectStoreNames.contains('library')) db.createObjectStore('library', { keyPath: 'id' });
         if (!db.objectStoreNames.contains('paths')) db.createObjectStore('paths', { keyPath: 'id' });
       };
     });
   }
 
-  async save(storeName: 'sessions' | 'library' | 'paths', data: any): Promise<void> {
+  async save(storeName: 'sessions' | 'paths', data: any): Promise<void> {
     const db = await this.getDB();
     return new Promise((resolve, reject) => {
       const transaction = db.transaction(storeName, 'readwrite');
@@ -28,7 +27,7 @@ export class StorageService {
     });
   }
 
-  async getAll(storeName: 'sessions' | 'library' | 'paths'): Promise<any[]> {
+  async getAll(storeName: 'sessions' | 'paths'): Promise<any[]> {
     const db = await this.getDB();
     return new Promise((resolve, reject) => {
       const transaction = db.transaction(storeName, 'readonly');
@@ -39,7 +38,7 @@ export class StorageService {
     });
   }
 
-  async delete(storeName: 'sessions' | 'library' | 'paths', id: string): Promise<void> {
+  async delete(storeName: 'sessions' | 'paths', id: string): Promise<void> {
     const db = await this.getDB();
     return new Promise((resolve, reject) => {
       const transaction = db.transaction(storeName, 'readwrite');

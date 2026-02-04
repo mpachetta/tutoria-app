@@ -2,7 +2,6 @@
 import React from 'react';
 import { 
   MessageSquare, 
-  Library, 
   History as HistoryIcon, 
   LogOut, 
   User, 
@@ -14,8 +13,8 @@ import {
 
 interface LayoutProps {
   children: React.ReactNode;
-  activeView: 'chat' | 'history' | 'library' | 'profile' | 'paths';
-  setActiveView: (view: 'chat' | 'history' | 'library' | 'profile' | 'paths') => void;
+  activeView: 'chat' | 'history' | 'profile' | 'paths';
+  setActiveView: (view: 'chat' | 'history' | 'profile' | 'paths') => void;
   user: any;
   onLogout: () => void;
 }
@@ -27,7 +26,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
     { id: 'chat', label: 'TutorIA Chat', icon: MessageSquare },
     { id: 'paths', label: 'Rutas de Aprendizaje', icon: Compass },
     { id: 'history', label: 'Historial', icon: HistoryIcon },
-    { id: 'library', label: 'Mi Biblioteca', icon: Library },
     { id: 'profile', label: 'Mi Perfil', icon: User },
   ];
 
@@ -67,7 +65,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
           </div>
           <div className="overflow-hidden">
             <p className="font-semibold truncate">{user?.name}</p>
-            <p className="text-xs text-indigo-300 truncate">{user?.grade}</p>
+            <p className="text-xs text-indigo-300 truncate">Edad: {user?.age ?? '--'}</p>
           </div>
         </div>
         <button

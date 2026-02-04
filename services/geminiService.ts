@@ -30,7 +30,7 @@ export class GeminiService {
       throw new Error("API_KEY_INVALID");
     }
 
-    const studentInfo = `Contexto: Estudiante ${userProfile.name}, ${userProfile.age} años, curso ${userProfile.grade}.`;
+    const studentInfo = `Contexto: Estudiante ${userProfile.name}, ${userProfile.age} años.`;
     
     const currentParts: Part[] = [];
 
