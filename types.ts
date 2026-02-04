@@ -2,7 +2,6 @@
 export interface UserProfile {
   name: string;
   age: number;
-  grade: string;
   id: string;
   email: string;
 }
@@ -28,15 +27,6 @@ export interface ChatSession {
   title: string;
   messages: Message[];
   updatedAt: number;
-  userId: string;
-}
-
-export interface LibraryItem {
-  id: string;
-  name: string;
-  type: string;
-  url: string;
-  uploadedAt: number;
   userId: string;
 }
 

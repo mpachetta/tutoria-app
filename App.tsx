@@ -1,9 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { UserProfile, ChatSession, Message, LibraryItem, LearningPath } from './types.ts';
+import { UserProfile, ChatSession, Message, LearningPath } from './types.ts';
 import Layout from './components/Layout.tsx';
 import ChatInterface from './components/ChatInterface.tsx';
-import Library from './components/Library.tsx';
 import History from './components/History.tsx';
 import ProfileSetup from './components/ProfileSetup.tsx';
 import LearningPaths from './components/LearningPaths.tsx';
@@ -13,10 +12,9 @@ import { storage } from './services/storageService.ts';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [activeView, setActiveView] = useState<'chat' | 'history' | 'library' | 'profile' | 'paths'>('chat');
+  const [activeView, setActiveView] = useState<'chat' | 'history' | 'profile' | 'paths'>('chat');
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
   const [learningPaths, setLearningPaths] = useState<LearningPath[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -31,14 +29,12 @@ const App: React.FC = () => {
         setIsLoggedIn(true);
       }
       
-      const [dbSessions, dbLibrary, dbPaths] = await Promise.all([
+      const [dbSessions, dbPaths] = await Promise.all([
         storage.getAll('sessions'),
-        storage.getAll('library'),
         storage.getAll('paths')
       ]);
 
       setSessions(dbSessions);
-      setLibraryItems(dbLibrary);
       setLearningPaths(dbPaths);
 
       // Verificar si ya hay una clave seleccionada
@@ -87,24 +83,6 @@ const App: React.FC = () => {
       currentSession.messages.push(msg);
       currentSession.updatedAt = Date.now();
       setSessions([...sessions]);
-    }
-
-    if (msg.attachments && msg.attachments.length > 0) {
-      for (const att of msg.attachments) {
-        const item: LibraryItem = {
-          id: att.id,
-          name: att.name,
-          type: att.mimeType,
-          url: att.url,
-          uploadedAt: Date.now(),
-          userId: user.id
-        };
-        await storage.save('library', item);
-        setLibraryItems(prev => {
-          if (prev.some(p => p.url === item.url)) return prev;
-          return [item, ...prev];
-        });
-      }
     }
 
     await storage.save('sessions', currentSession);
@@ -263,28 +241,6 @@ const App: React.FC = () => {
           }} 
         />
       )}
-      {activeView === 'library' && (
-        <Library 
-          items={libraryItems} 
-          onDeleteItem={async (id) => {
-            if (confirm("¿Borrar de la biblioteca?")) {
-              await storage.delete('library', id);
-              setLibraryItems(prev => prev.filter(i => i.id !== id));
-            }
-          }} 
-          onUseInChat={(item) => {
-            setActiveSessionId(null);
-            setActiveView('chat');
-            handleSendMessage({
-              id: Date.now().toString(),
-              role: 'user',
-              content: `Analicemos este archivo: ${item.name}`,
-              timestamp: Date.now(),
-              attachments: [{ id: item.id, name: item.name, type: 'file', url: item.url, mimeType: item.type }]
-            });
-          }}
-        />
-      )}
       {activeView === 'profile' && (
         <div className="p-10 max-w-2xl mx-auto w-full">
            <h1 className="text-4xl font-black mb-10 text-slate-800">Mi Perfil</h1>
@@ -295,7 +251,7 @@ const App: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-slate-800">{user.name}</h2>
-                  <p className="text-slate-500">{user.grade}</p>
+                  <p className="text-slate-500">Edad: {user.age} años</p>
                 </div>
               </div>
 
